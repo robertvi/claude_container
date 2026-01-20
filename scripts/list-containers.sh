@@ -17,8 +17,8 @@ echo "=== Running Containers ==="
 echo ""
 
 # List all running containers
-if podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}" | tail -n +2 | grep -q .; then
-    podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+if sudo podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}" | tail -n +2 | grep -q .; then
+    sudo podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
 else
     echo "No running containers found"
 fi
@@ -28,8 +28,8 @@ echo "=== All Containers (including stopped) ==="
 echo ""
 
 # List all containers including stopped ones
-if podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}" | tail -n +2 | grep -q .; then
-    podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+if sudo podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}" | tail -n +2 | grep -q .; then
+    sudo podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
 else
     echo "No containers found"
 fi

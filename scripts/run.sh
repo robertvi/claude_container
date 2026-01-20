@@ -59,14 +59,14 @@ echo "Shared folder: $SHARED_FOLDER"
 echo ""
 
 # Stop and remove existing container if it exists
-if podman container exists "$CONTAINER_NAME"; then
+if sudo podman container exists "$CONTAINER_NAME"; then
     echo "Removing existing container..."
-    podman stop "$CONTAINER_NAME" 2>/dev/null || true
-    podman rm "$CONTAINER_NAME" 2>/dev/null || true
+    sudo podman stop "$CONTAINER_NAME" 2>/dev/null || true
+    sudo podman rm "$CONTAINER_NAME" 2>/dev/null || true
 fi
 
 # Check if image exists
-if ! podman image exists "$IMAGE_NAME:$IMAGE_TAG"; then
+if ! sudo podman image exists "$IMAGE_NAME:$IMAGE_TAG"; then
     echo "ERROR: Image $IMAGE_NAME:$IMAGE_TAG does not exist"
     echo "Please build it first: ./scripts/build.sh"
     exit 1
@@ -85,7 +85,7 @@ fi
 echo "Starting container..."
 echo ""
 
-podman run -d \
+sudo podman run -d \
     --name "$CONTAINER_NAME" \
     --hostname claude-sandbox \
     -p 2222:22 \
@@ -100,11 +100,11 @@ podman run -d \
 sleep 2
 
 # Check if container is running
-if podman ps | grep -q "$CONTAINER_NAME"; then
+if sudo podman ps | grep -q "$CONTAINER_NAME"; then
     echo "✓ Container started successfully"
     echo ""
     echo "=== Container Information ==="
-    podman ps --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    sudo podman ps --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     echo ""
     echo "=== Connection Details ==="
     echo "SSH: ssh -p 2222 -i $SSH_KEY_PATH claude@localhost"
@@ -114,13 +114,13 @@ if podman ps | grep -q "$CONTAINER_NAME"; then
     echo "Workspace on host: $SHARED_FOLDER"
     echo ""
     echo "To connect: ./scripts/connect.sh"
-    echo "To view logs: podman logs $CONTAINER_NAME"
-    echo "To stop: podman stop $CONTAINER_NAME"
+    echo "To view logs: sudo podman logs $CONTAINER_NAME"
+    echo "To stop: sudo podman stop $CONTAINER_NAME"
     echo ""
 else
     echo "✗ ERROR: Container failed to start"
     echo ""
     echo "Logs:"
-    podman logs "$CONTAINER_NAME"
+    sudo podman logs "$CONTAINER_NAME"
     exit 1
 fi

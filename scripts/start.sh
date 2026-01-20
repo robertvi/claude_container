@@ -19,13 +19,13 @@ if ! command -v podman &> /dev/null; then
 fi
 
 # Check if container is already running
-if podman ps --filter "name=$CONTAINER_NAME" --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"; then
+if sudo podman ps --filter "name=$CONTAINER_NAME" --format "{{.Names}}" | grep -q "^$CONTAINER_NAME$"; then
     echo "=== Container Already Running ==="
     echo ""
     echo "Reusing existing container '$CONTAINER_NAME'"
 
     # Show current container info
-    podman ps --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    sudo podman ps --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     echo ""
 
     # Connect to the container
