@@ -45,8 +45,16 @@ RUN npm install -g @anthropic-ai/claude-code
 # Remove ubuntu user if it exists (conflicts with UID 1000), then create claude user
 RUN (userdel -r ubuntu 2>/dev/null || true) && \
     useradd -m -s /bin/bash -u 1000 claude && \
-    echo 'claude:claude' | chpasswd && \
-    usermod -aG sudo claude
+    usermod -aG sudo claude && \
+    # Create .ssh directory for key-based authentication
+    mkdir -p /home/claude/.ssh && \
+    chmod 700 /home/claude/.ssh && \
+    chown -R claude:claude /home/claude/.ssh
+
+# Copy SSH public key for passwordless authentication
+COPY authorized_keys.tmp /home/claude/.ssh/authorized_keys
+RUN chmod 600 /home/claude/.ssh/authorized_keys && \
+    chown claude:claude /home/claude/.ssh/authorized_keys
 
 # Configure SSH
 RUN mkdir /var/run/sshd && \

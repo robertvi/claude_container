@@ -30,9 +30,8 @@ MaxSessions 10
 PubkeyAuthentication yes
 AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys2
 
-# Password authentication (enabled for initial setup)
-# For production, consider disabling and using only key-based auth
-PasswordAuthentication yes
+# Password authentication disabled - using key-based auth only
+PasswordAuthentication no
 PermitEmptyPasswords no
 
 # Challenge-response authentication

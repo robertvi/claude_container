@@ -38,6 +38,19 @@ fi
 # Convert to absolute path
 SHARED_FOLDER="$(cd "$SHARED_FOLDER" && pwd)"
 
+# Determine which SSH key is being used (for display purposes)
+if [ -f "$HOME/.ssh/id_ed25519" ]; then
+    SSH_KEY_PATH="$HOME/.ssh/id_ed25519"
+    SSH_KEY_TYPE="ed25519"
+elif [ -f "$HOME/.ssh/id_rsa" ]; then
+    SSH_KEY_PATH="$HOME/.ssh/id_rsa"
+    SSH_KEY_TYPE="rsa"
+else
+    echo "ERROR: No SSH key found"
+    echo "Please run ./scripts/build.sh first to generate and embed an SSH key"
+    exit 1
+fi
+
 echo "=== Starting Claude Code Container ==="
 echo ""
 echo "Image: $IMAGE_NAME:$IMAGE_TAG"
@@ -92,8 +105,8 @@ if podman ps | grep -q "$CONTAINER_NAME"; then
     podman ps --filter "name=$CONTAINER_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     echo ""
     echo "=== Connection Details ==="
-    echo "SSH: ssh -p 2222 claude@localhost"
-    echo "Default password: claude"
+    echo "SSH: ssh -p 2222 -i $SSH_KEY_PATH claude@localhost"
+    echo "Authentication: Key-based ($SSH_KEY_TYPE)"
     echo ""
     echo "Workspace in container: /workspace"
     echo "Workspace on host: $SHARED_FOLDER"
