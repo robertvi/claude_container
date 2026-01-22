@@ -33,6 +33,10 @@ if [ ! -d "$CLAUDE_DIR" ]; then
     exit 1
 fi
 
+# Configure git identity for commits
+git config --global user.email "noreply@github.com"
+git config --global user.name "Claude Backup"
+
 # Git URL with embedded token (never written to disk in plaintext config)
 GIT_URL="https://oauth2:${GITHUB_PAT}@github.com/${GITHUB_USER}/${REPO_NAME}.git"
 
@@ -44,10 +48,19 @@ if [ -d "$BACKUP_REPO_DIR" ]; then
     echo "Updating existing backup repository..."
     cd "$BACKUP_REPO_DIR"
 
-    # Reset any local changes and update from remote
+    # Fetch from remote
     git fetch origin
-    git checkout main 2>/dev/null || git checkout master
-    git reset --hard origin/$(git branch --show-current)
+
+    # Try to checkout main/master, or stay on current branch if repo is empty
+    if git show-ref --verify --quiet refs/remotes/origin/main; then
+        git checkout main
+        git reset --hard origin/main
+    elif git show-ref --verify --quiet refs/remotes/origin/master; then
+        git checkout master
+        git reset --hard origin/master
+    else
+        echo "Empty repository, will create initial commit"
+    fi
 else
     echo "Cloning backup repository..."
     git clone "$GIT_URL" "$BACKUP_REPO_DIR"

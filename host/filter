@@ -19,6 +19,8 @@
 # NPM package registries
 ^registry\.npmjs\.org(:[0-9]+)?$
 ^registry\.yarnpkg\.com(:[0-9]+)?$
+^www\.npmjs\.com(:[0-9]+)?$
+^npmjs\.com(:[0-9]+)?$
 
 # Python package index
 ^pypi\.org(:[0-9]+)?$
