@@ -1,6 +1,6 @@
 # Claude Code Sandbox Container
 
-A rootless Podman container environment for running Claude Code CLI in a sandboxed environment with network restrictions and auto-approval for bash commands.
+A rootless Podman container environment for running Claude Code CLI in a sandboxed environment with network restrictions. Filtering currently is not enforced externally, meaning claude could easily bypass it. Oh and it has full yolo mode in the container: auto-approval of all edits and bash commands, as well as passwordless sudo. I'm still iterating the setup so it's not fit for purpose yet.
 
 **Use at your own risk.** This is an experimental setup for running Claude Code in an isolated environment.
 
