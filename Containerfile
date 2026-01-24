@@ -1,4 +1,8 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
+
+# Build arguments for user UID/GID
+ARG USER_UID=1000
+ARG USER_GID=1000
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -14,9 +18,12 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user 'claude' with UID 1000
-RUN groupadd -g 1000 claude && \
-    useradd -u 1000 -g 1000 -m -s /bin/bash claude
+# Create non-root user 'claude' with dynamic UID/GID
+# Always remove default ubuntu user to avoid conflicts
+RUN (userdel -r ubuntu 2>/dev/null || true) && \
+    (groupdel ubuntu 2>/dev/null || true) && \
+    groupadd -g ${USER_GID} claude && \
+    useradd -u ${USER_UID} -g ${USER_GID} -m -s /bin/bash claude
 
 # Configure passwordless sudo for claude user
 RUN echo 'claude ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/claude && \
@@ -27,10 +34,13 @@ USER claude
 WORKDIR /home/claude
 
 # Install Claude Code CLI as the claude user (required for auto-updates)
-RUN curl -fsSL https://storage.googleapis.com/anthropic-code-cli/install.sh | sh
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Add Claude Code to PATH
 ENV PATH="/home/claude/.local/bin:${PATH}"
+
+# Setup bash alias to launch claude with --allow-dangerously-skip-permissions
+RUN echo 'alias claude="claude --allow-dangerously-skip-permissions"' >> /home/claude/.bashrc
 
 # Set working directory to the shared workspace
 WORKDIR /workspace
