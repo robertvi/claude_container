@@ -123,17 +123,18 @@ All scripts support common flags (in any order):
 - `--test` - Use test image/containers instead of production
 - `--name <name>` - Specify instance name (default: `default`)
 - `--force` - Force operation where applicable
-- `--nosudo` - (build.sh only) Disable sudo access for claude user
+- `--no-sudo` - (build.sh only) Disable sudo access for claude user
+- `--no-cache` - (build.sh only) Force rebuild without using cached layers
 
-### `./scripts/build.sh [--test] [--nosudo]`
+### `./scripts/build.sh [--test] [--no-sudo] [--no-cache]`
 
 Builds the container image with your current user's UID/GID.
 
 - **Output:** Container image tagged as `claude-sandbox` (or `claude-sandbox-test` with `--test`)
 - **Log file:** `/tmp/claude-sandbox-build.log`
 - **Build args:** Automatically passes `USER_UID` and `USER_GID`
-- **Cache:** Uses `--no-cache` to ensure UID/GID are correctly applied
-- **--nosudo:** Disable sudo access for claude user (more restrictive container)
+- **--no-sudo:** Disable sudo access for claude user (more restrictive container)
+- **--no-cache:** Force rebuild without using cached layers
 
 ### `./scripts/run.sh [--test] [--name <name>] [path]`
 
@@ -405,7 +406,7 @@ USER_GID=1001
 - **Sandbox mode:** Uses bubblewrap for process isolation
 - **Rootless containers:** Run without root privileges on the host
 - **Passwordless sudo:** Enabled by default inside container for convenience (container is already isolated)
-  - Use `./scripts/build.sh --nosudo` to disable sudo entirely for maximum restriction
+  - Use `./scripts/build.sh --no-sudo` to disable sudo entirely for maximum restriction
 - **Network access:** Container has full network access (no filtering by default)
 - **Shared folders:** Only explicitly mounted folders are accessible
 

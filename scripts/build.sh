@@ -24,18 +24,25 @@ USER_UID=$(id -u)
 USER_GID=$(id -g)
 
 # Determine NOSUDO value for build arg
-if [[ "$NOSUDO_MODE" == "true" ]]; then
+if [[ "$NO_SUDO_MODE" == "true" ]]; then
     NOSUDO_ARG="true"
     info "Building with sudo DISABLED for claude user"
 else
     NOSUDO_ARG="false"
 fi
 
+# Determine cache flag
+CACHE_FLAG=""
+if [[ "$NO_CACHE_MODE" == "true" ]]; then
+    CACHE_FLAG="--no-cache"
+    info "Building with no cache (forcing full rebuild)"
+fi
+
 > "$LOG_FILE"
 
 info "Building container image for UID:GID ${USER_UID}:${USER_GID}... (logging to ${LOG_FILE})"
 podman build \
-  --no-cache \
+  $CACHE_FLAG \
   --build-arg USER_UID="${USER_UID}" \
   --build-arg USER_GID="${USER_GID}" \
   --build-arg NOSUDO="${NOSUDO_ARG}" \
