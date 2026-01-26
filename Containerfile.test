@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     socat \
     curl \
     sudo \
+    nano \
     git \
     build-essential \
     ca-certificates \
@@ -48,4 +49,4 @@ RUN cat /tmp/bashrc-additions >> /home/claude/.bashrc && \
 WORKDIR /workspace
 
 # Keep container running
-CMD ["sleep", "infinity"]
+CMD ["bash", "-c", "trap 'exit 0' SIGTERM; while :; do sleep 1; done"]
