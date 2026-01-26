@@ -19,12 +19,16 @@ if ! container_exists "$CONTAINER_NAME"; then
     die "Container '${CONTAINER_NAME}' does not exist."
 fi
 
-# Check if container is running
-if ! container_running "$CONTAINER_NAME"; then
-    info "Container '${CONTAINER_NAME}' is already stopped."
-    exit 0
+# Check if container is running (unless --force)
+if container_running "$CONTAINER_NAME"; then
+    if [[ "$FORCE_MODE" == "true" ]]; then
+        info "Force stopping container: ${CONTAINER_NAME}"
+        podman stop "$CONTAINER_NAME"
+    else
+        die "Container '${CONTAINER_NAME}' is running. Stop it first or use --force."
+    fi
 fi
 
-info "Stopping container: ${CONTAINER_NAME}"
-podman stop "$CONTAINER_NAME"
-info "Container stopped. Use ./scripts/start.sh to restart or ./scripts/rm.sh to remove."
+info "Removing container: ${CONTAINER_NAME}"
+podman rm "$CONTAINER_NAME"
+info "Container removed."

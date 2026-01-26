@@ -16,15 +16,15 @@ CONTAINER_NAME=$(build_container_name "$TEST_MODE" "$INSTANCE_NAME")
 
 # Check if container exists
 if ! container_exists "$CONTAINER_NAME"; then
-    die "Container '${CONTAINER_NAME}' does not exist."
+    die "Container '${CONTAINER_NAME}' does not exist. Use ./scripts/run.sh to create it."
 fi
 
-# Check if container is running
-if ! container_running "$CONTAINER_NAME"; then
-    info "Container '${CONTAINER_NAME}' is already stopped."
+# Check if container is already running
+if container_running "$CONTAINER_NAME"; then
+    info "Container '${CONTAINER_NAME}' is already running."
     exit 0
 fi
 
-info "Stopping container: ${CONTAINER_NAME}"
-podman stop "$CONTAINER_NAME"
-info "Container stopped. Use ./scripts/start.sh to restart or ./scripts/rm.sh to remove."
+info "Starting container: ${CONTAINER_NAME}"
+podman start "$CONTAINER_NAME"
+info "Container started. Access with: ./scripts/exec.sh${TEST_MODE:+ --test} --name ${INSTANCE_NAME}"

@@ -1,28 +1,37 @@
 #!/bin/bash
 set -e
 
-# Check for --test flag and extract shared folder
-TEST_MODE=false
-SHARED_FOLDER=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-for arg in "$@"; do
-    if [[ "$arg" == "--test" ]]; then
-        TEST_MODE=true
-    else
-        SHARED_FOLDER="$arg"
-    fi
-done
+# shellcheck source=common.sh
+source "$SCRIPT_DIR/common.sh"
 
-SHARED_FOLDER="${SHARED_FOLDER:-$(pwd)}"
+parse_common_args "$@"
 
-if $TEST_MODE; then
-    CONTAINER_NAME="claude-sandbox-test"
-    IMAGE_NAME="claude-sandbox-test"
+# Default instance name
+INSTANCE_NAME="${INSTANCE_NAME:-default}"
+
+# Shared folder is the first remaining arg, or pwd
+SHARED_FOLDER="${REMAINING_ARGS[0]:-$(pwd)}"
+
+# Build container and image names
+CONTAINER_NAME=$(build_container_name "$TEST_MODE" "$INSTANCE_NAME")
+IMAGE_NAME=$(get_image_name "$TEST_MODE")
+
+if [[ "$TEST_MODE" == "true" ]]; then
     LOG_FILE="/tmp/claude-sandbox-test-run.log"
 else
-    CONTAINER_NAME="claude-sandbox"
-    IMAGE_NAME="claude-sandbox"
     LOG_FILE="/tmp/claude-sandbox-run.log"
+fi
+
+# Check if image exists
+if ! image_exists "$IMAGE_NAME"; then
+    die "Image '${IMAGE_NAME}' does not exist. Run: ./scripts/build.sh${TEST_MODE:+ --test}"
+fi
+
+# Check if container already exists
+if container_exists "$CONTAINER_NAME"; then
+    die "Container '${CONTAINER_NAME}' already exists. Use ./scripts/rm.sh to remove it first."
 fi
 
 USER_UID=$(id -u)
@@ -30,13 +39,7 @@ USER_GID=$(id -g)
 
 > "$LOG_FILE"
 
-if podman ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-    echo "Container '${CONTAINER_NAME}' already exists."
-    echo "To restart, first run: podman rm -f ${CONTAINER_NAME}"
-    exit 1
-fi
-
-echo "Starting container with UID:GID ${USER_UID}:${USER_GID}... (logging to ${LOG_FILE})"
+info "Starting container '${CONTAINER_NAME}' with UID:GID ${USER_UID}:${USER_GID}..."
 podman run -d \
   --name "$CONTAINER_NAME" \
   --hostname "$CONTAINER_NAME" \
@@ -44,6 +47,6 @@ podman run -d \
   -v "$SHARED_FOLDER:/workspace:Z" \
   "$IMAGE_NAME" 2>&1 | tee "$LOG_FILE"
 
-echo "Container started: ${CONTAINER_NAME}"
-echo "Shared folder: ${SHARED_FOLDER} -> /workspace"
-echo "Access with: ./scripts/exec.sh${TEST_MODE:+ --test}"
+info "Container started: ${CONTAINER_NAME}"
+info "Shared folder: ${SHARED_FOLDER} -> /workspace"
+info "Access with: ./scripts/exec.sh${TEST_MODE:+ --test} --name ${INSTANCE_NAME}"
