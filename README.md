@@ -6,12 +6,14 @@ A rootless Podman container setup for running [Claude Code CLI](https://claude.c
 
 - **Rootless Podman**: No sudo required for container operations
 - **Ubuntu 24.04 LTS**: Latest long-term support release
+- **Multi-container support**: Run multiple named containers simultaneously
 - **Sandbox Mode**: Built-in support for Claude Code's `/sandbox` mode using bubblewrap
 - **Auto-updates**: Claude Code installed as non-root user to enable automatic updates
 - **Passwordless sudo**: Convenient sudo access inside the container
 - **Dynamic UID/GID mapping**: Automatically matches your host user for seamless file permissions
 - **Shared folder mounting**: Mount any directory with proper SELinux compatibility
 - **Permission skip alias**: Pre-configured alias for `--allow-dangerously-skip-permissions` flag
+- **Test mode**: Separate test containers/images for safe development
 
 ## Prerequisites
 
@@ -64,15 +66,18 @@ This will:
 Start the container with a shared folder:
 
 ```bash
-# Use current directory (default)
+# Use current directory with default name
 ./scripts/run.sh
 
-# Or specify a custom directory
+# Specify a custom directory
 ./scripts/run.sh /path/to/your/project
+
+# Use a named instance for multiple containers
+./scripts/run.sh --name myproject /path/to/your/project
 ```
 
-This creates and starts a container named `claude-sandbox` with:
-- Hostname: `claude-sandbox`
+This creates and starts a container with:
+- Container name: `claude-sandbox-default` (or `claude-sandbox-<name>` with `--name`)
 - Shared folder mounted at `/workspace` inside the container
 - SELinux compatibility (`:Z` flag)
 - UID/GID mapping for seamless file permissions
@@ -82,7 +87,11 @@ This creates and starts a container named `claude-sandbox` with:
 Open an interactive shell inside the running container:
 
 ```bash
+# Auto-detect (works if only one container running)
 ./scripts/exec.sh
+
+# Or specify by name
+./scripts/exec.sh --name myproject
 ```
 
 You'll be logged in as the `claude` user at `/workspace` (your shared folder).
@@ -110,46 +119,83 @@ claude "help me refactor this code"
 
 ## Scripts Overview
 
-### `./scripts/build.sh`
+All scripts support common flags (in any order):
+- `--test` - Use test image/containers instead of production
+- `--name <name>` - Specify instance name (default: `default`)
+- `--force` - Force operation where applicable
+
+### `./scripts/build.sh [--test]`
 
 Builds the container image with your current user's UID/GID.
 
-- **Output:** Container image tagged as `claude-sandbox`
+- **Output:** Container image tagged as `claude-sandbox` (or `claude-sandbox-test` with `--test`)
 - **Log file:** `/tmp/claude-sandbox-build.log`
 - **Build args:** Automatically passes `USER_UID` and `USER_GID`
 - **Cache:** Uses `--no-cache` to ensure UID/GID are correctly applied
 
-### `./scripts/run.sh [path]`
+### `./scripts/run.sh [--test] [--name <name>] [path]`
 
-Starts the container with optional shared folder path.
+Creates and starts a new container with optional shared folder path.
 
 - **Arguments:**
+  - `--name <name>` (optional): Instance name (default: `default`)
   - `path` (optional): Directory to share (defaults to current directory)
-- **Container name:** `claude-sandbox`
-- **Hostname:** `claude-sandbox`
+- **Container name:** `claude-sandbox-<name>` (or `claude-sandbox-test-<name>` with `--test`)
 - **Mount point:** `/workspace` inside container
-- **Log file:** `/tmp/claude-sandbox-run.log`
-- **Note:** Will fail if container already exists (remove with `podman rm -f claude-sandbox` or use `clean.sh` - ⚠️ WARNING: clean.sh removes ALL containers/images)
+- **Note:** Will fail if container already exists (use `./scripts/rm.sh` first)
 
-### `./scripts/exec.sh`
+### `./scripts/exec.sh [--test] [--name <name>]`
 
 Opens an interactive bash shell inside the running container.
 
+- **Auto-detect:** If only one container is running and no `--name` specified, auto-selects it
+- **Multiple containers:** Lists running containers and asks you to specify `--name`
 - **User:** `claude`
 - **Working directory:** `/workspace`
-- **Log file:** `/tmp/claude-sandbox-exec.log`
-- **Note:** Requires container to be running
 
-### `./scripts/clean.sh`
+### `./scripts/stop.sh [--test] [--name <name>]`
 
-**⚠️ CRITICAL WARNING:** This script stops ALL Podman containers and removes ALL Podman images on your entire system, not just Claude-related ones. Use with extreme caution!
+Stops a running container (preserves container filesystem for restart).
 
-- **Actions:**
-  - Stops all running containers
-  - Removes all containers
-  - Removes all images
-- **Log file:** `/tmp/claude-sandbox-clean.log`
-- **Use with caution:** Only run if you want to clean your entire Podman environment
+- **Default name:** `default`
+- **Note:** Use `start.sh` to restart, or `rm.sh` to remove
+
+### `./scripts/start.sh [--test] [--name <name>]`
+
+Restarts a stopped container.
+
+- **Default name:** `default`
+- **Note:** Container must exist (created with `run.sh`)
+
+### `./scripts/rm.sh [--test] [--name <name>] [--force]`
+
+Removes a container.
+
+- **Default name:** `default`
+- **--force:** Stop and remove even if running
+
+### `./scripts/rmi.sh [--test] [--force]`
+
+Removes an image.
+
+- **Warns:** If containers using the image still exist
+- **--force:** Remove despite existing containers
+
+### `./scripts/list.sh`
+
+Lists all claude-sandbox containers with status and shared folder path.
+
+- **Shows:** Container name, running/stopped status, mounted folder
+
+### `./scripts/nuke.sh [--test] [--force]`
+
+Targeted cleanup of claude-sandbox resources only.
+
+- **--test:** Only removes test containers and test image (safe while running in production container)
+- **Without --test:** Removes ALL claude-sandbox containers and both images
+- **--force:** Skip confirmation prompt
+
+**Note:** Unlike the old `clean.sh`, this only affects claude-sandbox resources, not your entire Podman environment.
 
 ## File Permissions
 
@@ -166,14 +212,16 @@ Files created inside the container will appear on the host with your user owners
 
 ```
 Host Machine (UID 1000, GID 1000)
-└── Rootless Podman Container
-    ├── Ubuntu 24.04 base
-    ├── bubblewrap + socat (for Claude sandbox mode)
-    ├── Claude Code CLI (installed as user, not root)
-    ├── claude user (UID 1000, GID 1000 - matches host)
-    ├── Passwordless sudo configured
-    ├── /workspace → host shared folder (:Z for SELinux)
-    └── UID mapping via --userns=keep-id:uid=1000,gid=1000
+└── Rootless Podman
+    ├── Image: claude-sandbox (prod) / claude-sandbox-test (test)
+    └── Containers: claude-sandbox-<name> / claude-sandbox-test-<name>
+        ├── Ubuntu 24.04 base
+        ├── bubblewrap + socat (for Claude sandbox mode)
+        ├── Claude Code CLI (installed as user, not root)
+        ├── claude user (UID 1000, GID 1000 - matches host)
+        ├── Passwordless sudo configured
+        ├── /workspace → host shared folder (:Z for SELinux)
+        └── UID mapping via --userns=keep-id:uid=1000,gid=1000
 ```
 
 ## Troubleshooting
@@ -181,14 +229,14 @@ Host Machine (UID 1000, GID 1000)
 ### Container Already Exists
 
 ```
-Error: Container 'claude-sandbox' already exists.
+Error: Container 'claude-sandbox-default' already exists.
 ```
 
 **Solution:** Remove the existing container first:
 ```bash
-podman rm -f claude-sandbox
-# Or use clean.sh (⚠️ WARNING: Removes ALL Podman containers/images on your system!)
-./scripts/clean.sh
+./scripts/rm.sh
+# Or force remove if running:
+./scripts/rm.sh --force
 ```
 
 ### Claude Command Not Found
@@ -205,10 +253,12 @@ If `claude` command is not found inside the container:
    echo $PATH | grep ".local/bin"
    ```
 
-3. Try rebuilding without cache (⚠️ WARNING: clean.sh removes ALL Podman containers/images):
+3. Try rebuilding:
    ```bash
-   ./scripts/clean.sh
+   ./scripts/rm.sh --force
+   ./scripts/rmi.sh --force
    ./scripts/build.sh
+   ./scripts/run.sh
    ```
 
 ### File Permission Issues
@@ -222,13 +272,14 @@ If files have wrong ownership:
 
 2. Check container user UID/GID:
    ```bash
-   podman exec claude-sandbox id claude
+   podman exec claude-sandbox-default id claude
    ```
 
-3. Rebuild if they don't match (⚠️ WARNING: clean.sh removes ALL Podman containers/images):
+3. Rebuild if they don't match:
    ```bash
-   ./scripts/clean.sh
+   ./scripts/nuke.sh --force
    ./scripts/build.sh
+   ./scripts/run.sh
    ```
 
 ### Sandbox Mode Not Working
@@ -254,38 +305,79 @@ If you get permission denied errors on SELinux-enabled systems (Fedora, RHEL):
 
 ## Container Lifecycle
 
-### Stop the Container
+### List All Containers
 ```bash
-podman stop claude-sandbox
+./scripts/list.sh
 ```
 
-### Restart the Container
+### Stop a Container
 ```bash
-podman start claude-sandbox
+./scripts/stop.sh --name myproject
+# Or for default container:
+./scripts/stop.sh
 ```
 
-### Remove the Container
+### Restart a Stopped Container
 ```bash
-podman rm -f claude-sandbox
+./scripts/start.sh --name myproject
+```
+
+### Remove a Container
+```bash
+./scripts/rm.sh --name myproject
+# Force remove (even if running):
+./scripts/rm.sh --name myproject --force
 ```
 
 ### View Container Logs
 ```bash
-podman logs claude-sandbox
+podman logs claude-sandbox-myproject
 ```
 
-### Check Container Status
+### Clean Up All Claude Containers
 ```bash
-podman ps -a | grep claude-sandbox
+# Remove all claude-sandbox containers and images (with confirmation):
+./scripts/nuke.sh
+
+# Remove only test resources:
+./scripts/nuke.sh --test
 ```
 
 ## Advanced Usage
 
-### Custom Container Name
+### Multiple Projects
 
-Edit `scripts/run.sh` and change:
+Run separate containers for different projects:
+
 ```bash
-CONTAINER_NAME="your-custom-name"
+# Start containers for different projects
+./scripts/run.sh --name webapp ~/projects/webapp
+./scripts/run.sh --name api ~/projects/api
+./scripts/run.sh --name docs ~/projects/docs
+
+# List all running containers
+./scripts/list.sh
+
+# Access specific container
+./scripts/exec.sh --name webapp
+
+# Stop one while keeping others running
+./scripts/stop.sh --name api
+```
+
+### Test Mode
+
+Use `--test` flag to work with separate test containers/images:
+
+```bash
+# Build test image
+./scripts/build.sh --test
+
+# Run test container
+./scripts/run.sh --test --name experiment /tmp/test
+
+# Clean up only test resources (safe while in production)
+./scripts/nuke.sh --test --force
 ```
 
 ### Mount Multiple Folders
