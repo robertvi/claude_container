@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-# Build arguments
+# Build arguments for user UID/GID and sudo configuration
 ARG USER_UID=1000
 ARG USER_GID=1000
 ARG NOSUDO=false
@@ -47,7 +47,7 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/home/claude/.local/bin:${PATH}"
 
 # Append custom bashrc config (copy as claude user owns .bashrc)
-COPY --chown=claude:claude ./bashrc-additions /tmp/bashrc-additions
+COPY --chown=claude:claude ./bashrc-additions-test /tmp/bashrc-additions
 RUN cat /tmp/bashrc-additions >> /home/claude/.bashrc && \
     rm /tmp/bashrc-additions
 

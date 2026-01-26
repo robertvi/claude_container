@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     socat \
     curl \
     sudo \
+    nano \
     git \
     build-essential \
     ca-certificates \
@@ -45,11 +46,13 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Add Claude Code to PATH
 ENV PATH="/home/claude/.local/bin:${PATH}"
 
-# Setup bash alias to launch claude with --allow-dangerously-skip-permissions
-RUN echo 'alias claude="claude --allow-dangerously-skip-permissions"' >> /home/claude/.bashrc
+# Append custom bashrc config (copy as claude user owns .bashrc)
+COPY --chown=claude:claude ./bashrc-additions /tmp/bashrc-additions
+RUN cat /tmp/bashrc-additions >> /home/claude/.bashrc && \
+    rm /tmp/bashrc-additions
 
 # Set working directory to the shared workspace
 WORKDIR /workspace
 
 # Keep container running
-CMD ["sleep", "infinity"]
+CMD ["bash", "-c", "trap 'exit 0' SIGTERM; while :; do sleep 1; done"]
