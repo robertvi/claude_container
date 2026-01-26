@@ -42,7 +42,7 @@ ENV PATH="/home/claude/.local/bin:${PATH}"
 # Append custom bashrc config 
 COPY ./bashrc-additions /tmp/bashrc-additions
 RUN cat /tmp/bashrc-additions >> /home/claude/.bashrc && \
-    rm /tmp/bashrc-additions
+    sudo rm /tmp/bashrc-additions
 
 # Set working directory to the shared workspace
 WORKDIR /workspace
