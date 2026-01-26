@@ -1,8 +1,9 @@
 FROM ubuntu:24.04
 
-# Build arguments for user UID/GID
+# Build arguments for user UID/GID and PS1
 ARG USER_UID=1000
 ARG USER_GID=1000
+ARG HOST_PS1=""
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -39,9 +40,10 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Add Claude Code to PATH
 ENV PATH="/home/claude/.local/bin:${PATH}"
 
-# Setup bash alias and PS1 override support
+# Setup bash alias and custom PS1 (if provided at build time)
+ARG HOST_PS1
 RUN echo 'alias claude="claude --allow-dangerously-skip-permissions"' >> /home/claude/.bashrc && \
-    echo '[ -n "$CONTAINER_PS1" ] && PS1="$CONTAINER_PS1"' >> /home/claude/.bashrc
+    if [ -n "$HOST_PS1" ]; then echo "PS1='$HOST_PS1'" >> /home/claude/.bashrc; fi
 
 # Set working directory to the shared workspace
 WORKDIR /workspace

@@ -14,15 +14,4 @@ fi
 
 echo "[$(date)] Accessing test container: ${CONTAINER_NAME}" >> "$LOG_FILE"
 
-# Extract PS1 from host's interactive bash (with timeout to prevent hanging)
-HOST_PS1=$(timeout 2 bash -i -c 'echo "$PS1"' 2>/dev/null || echo "")
-
-# Build podman exec command
-EXEC_CMD=(podman exec -it)
-
-# Only pass PS1 if we successfully extracted one
-if [ -n "$HOST_PS1" ]; then
-    EXEC_CMD+=(-e "CONTAINER_PS1=${HOST_PS1}")
-fi
-
-"${EXEC_CMD[@]}" "$CONTAINER_NAME" /bin/bash
+podman exec -it "$CONTAINER_NAME" /bin/bash
