@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     sudo \
     nano \
     git \
+    gh \
     build-essential \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
