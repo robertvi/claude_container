@@ -20,6 +20,22 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Conditional GPU/CUDA toolkit installation
+ARG GPU=false
+RUN if [ "$GPU" = "true" ]; then \
+    apt-get update && \
+    apt-get install -y wget && \
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb && \
+    rm cuda-keyring_1.1-1_all.deb && \
+    apt-get update && \
+    apt-get install -y cuda-toolkit cudnn9-cuda-12 && \
+    rm -rf /var/lib/apt/lists/*; \
+  fi
+
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+
 # Create non-root user 'claude' with dynamic UID/GID
 # Always remove default ubuntu user to avoid conflicts
 RUN (userdel -r ubuntu 2>/dev/null || true) && \

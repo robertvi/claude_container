@@ -31,6 +31,14 @@ else
     NOSUDO_ARG="false"
 fi
 
+# Determine GPU value for build arg
+if [[ "$GPU_MODE" == "true" ]]; then
+    GPU_ARG="true"
+    info "Building with GPU/CUDA support"
+else
+    GPU_ARG="false"
+fi
+
 # Determine cache flag
 CACHE_FLAG=""
 if [[ "$NO_CACHE_MODE" == "true" ]]; then
@@ -46,6 +54,7 @@ podman build \
   --build-arg USER_UID="${USER_UID}" \
   --build-arg USER_GID="${USER_GID}" \
   --build-arg NOSUDO="${NOSUDO_ARG}" \
+  --build-arg GPU="${GPU_ARG}" \
   -t "$IMAGE_NAME" \
   -f "$PROJECT_DIR/$CONTAINERFILE" "$PROJECT_DIR" 2>&1 | tee "$LOG_FILE"
 

@@ -12,10 +12,12 @@ Rootless Podman container setup for running Claude Code CLI in sandbox mode (bub
 ./scripts/build.sh                              # Build production image
 ./scripts/build.sh --test                        # Build test image
 ./scripts/build.sh --no-sudo --no-cache          # No sudo, no layer cache
+./scripts/build.sh --gpu                         # Build with CUDA toolkit
 
 ./scripts/run.sh                                 # Run with cwd as shared folder
 ./scripts/run.sh --name foo ~/project            # Named instance, custom path
 ./scripts/run.sh --test --name bar /tmp/test     # Test container
+./scripts/run.sh --gpu --name gpu-dev ~/project  # Run with GPU passthrough
 
 ./scripts/exec.sh                               # Auto-detect single running container
 ./scripts/exec.sh --name foo                     # Specific container
@@ -29,7 +31,7 @@ Rootless Podman container setup for running Claude Code CLI in sandbox mode (bub
 ./scripts/nuke.sh --force                        # Remove ALL resources
 ```
 
-All scripts accept `--test`, `--name <name>`, `--force` in any order.
+All scripts accept `--test`, `--name <name>`, `--force`, `--gpu` in any order.
 
 ## Architecture
 
@@ -46,7 +48,7 @@ bashrc-additions            # Appended to claude user's .bashrc in image
 
 ### common.sh API
 
-All scripts source `common.sh` and call `parse_common_args "$@"` which sets globals: `TEST_MODE`, `INSTANCE_NAME`, `FORCE_MODE`, `NO_SUDO_MODE`, `NO_CACHE_MODE`, `REMAINING_ARGS`.
+All scripts source `common.sh` and call `parse_common_args "$@"` which sets globals: `TEST_MODE`, `INSTANCE_NAME`, `FORCE_MODE`, `NO_SUDO_MODE`, `NO_CACHE_MODE`, `GPU_MODE`, `REMAINING_ARGS`.
 
 Key functions:
 - `get_image_name(is_test)` - returns `claude-sandbox` or `claude-sandbox-test`
@@ -62,7 +64,7 @@ Key functions:
 
 ### Containerfile Details
 
-Build args: `USER_UID`, `USER_GID` (from host `id -u`/`id -g`), `NO_SUDO` (true/false). Note: `build.sh` passes this as `--build-arg NOSUDO=` (not `NO_SUDO`), but the Containerfile declares `ARG NO_SUDO` and re-declares it before the conditional - the actual arg name received from build.sh is `NOSUDO`.
+Build args: `USER_UID`, `USER_GID` (from host `id -u`/`id -g`), `NO_SUDO` (true/false), `GPU` (true/false). Note: `build.sh` passes this as `--build-arg NOSUDO=` (not `NO_SUDO`), but the Containerfile declares `ARG NO_SUDO` and re-declares it before the conditional - the actual arg name received from build.sh is `NOSUDO`. The `GPU` arg conditionally installs CUDA toolkit and cuDNN (~5GB added to image).
 
 Installed packages: `bubblewrap`, `socat`, `curl`, `sudo`, `nano`, `git`, `build-essential`, `ca-certificates`.
 
@@ -75,6 +77,7 @@ Container stays alive with: `trap 'exit 0' SIGTERM; while :; do sleep 1; done`
 - `--userns=keep-id:uid=${UID},gid=${GID}` - maps host user to container `claude` user
 - `-v "$FOLDER:/workspace:Z"` - shared folder mount with SELinux relabeling
 - `--hostname "$CONTAINER_NAME"` - sets hostname to match container name
+- `--device nvidia.com/gpu=all` - (with `--gpu`) CDI device passthrough for NVIDIA GPUs
 
 ## Development Patterns
 

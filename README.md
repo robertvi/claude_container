@@ -13,6 +13,7 @@ A rootless Podman container setup for running [Claude Code CLI](https://claude.c
 - **Dynamic UID/GID mapping**: Automatically matches your host user for seamless file permissions
 - **Shared folder mounting**: Mount any directory with proper SELinux compatibility
 - **Permission skip alias**: Pre-configured alias for `--allow-dangerously-skip-permissions` flag
+- **GPU passthrough**: Optional NVIDIA GPU support via CDI device passthrough
 - **Test mode**: Separate test containers/images for safe development
 
 ## Prerequisites
@@ -22,6 +23,17 @@ A rootless Podman container setup for running [Claude Code CLI](https://claude.c
 - **Podman** (rootless mode configured)
 - Linux system (tested on Ubuntu/Fedora/RHEL-based distributions)
 - User UID/GID (typically 1000 on most systems)
+
+### GPU Support (Optional)
+
+For NVIDIA GPU passthrough, the following are required on the host:
+
+1. **NVIDIA GPU drivers** installed and working (`nvidia-smi` should work)
+2. **nvidia-container-toolkit >= 1.13** installed
+3. **CDI spec generated:**
+   ```bash
+   sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+   ```
 
 ### Install Podman
 
@@ -125,8 +137,9 @@ All scripts support common flags (in any order):
 - `--force` - Force operation where applicable
 - `--no-sudo` - (build.sh only) Disable sudo access for claude user
 - `--no-cache` - (build.sh only) Force rebuild without using cached layers
+- `--gpu` - (build.sh) Install CUDA toolkit; (run.sh) Enable CDI GPU passthrough
 
-### `./scripts/build.sh [--test] [--no-sudo] [--no-cache]`
+### `./scripts/build.sh [--test] [--no-sudo] [--no-cache] [--gpu]`
 
 Builds the container image with your current user's UID/GID.
 
@@ -135,8 +148,9 @@ Builds the container image with your current user's UID/GID.
 - **Build args:** Automatically passes `USER_UID` and `USER_GID`
 - **--no-sudo:** Disable sudo access for claude user (more restrictive container)
 - **--no-cache:** Force rebuild without using cached layers
+- **--gpu:** Install CUDA toolkit and cuDNN in the image (~5GB added to image size)
 
-### `./scripts/run.sh [--test] [--name <name>] [path]`
+### `./scripts/run.sh [--test] [--name <name>] [--gpu] [path]`
 
 Creates and starts a new container with optional shared folder path.
 
@@ -145,6 +159,7 @@ Creates and starts a new container with optional shared folder path.
   - `path` (optional): Directory to share (defaults to current directory)
 - **Container name:** `claude-sandbox-<name>` (or `claude-sandbox-test-<name>` with `--test`)
 - **Mount point:** `/workspace` inside container
+- **--gpu:** Enable NVIDIA GPU passthrough via CDI (`--device nvidia.com/gpu=all`)
 - **Note:** Will fail if container already exists (use `./scripts/rm.sh` first)
 
 ### `./scripts/exec.sh [--test] [--name <name>]`
@@ -367,6 +382,25 @@ Run separate containers for different projects:
 # Stop one while keeping others running
 ./scripts/stop.sh --name api
 ```
+
+### GPU Support
+
+Build and run with NVIDIA GPU access:
+
+```bash
+# Build image with CUDA toolkit
+./scripts/build.sh --gpu
+
+# Run container with GPU passthrough
+./scripts/run.sh --gpu --name gpu-dev ~/project
+
+# Verify GPU access inside container
+./scripts/exec.sh --name gpu-dev
+# Then run: nvidia-smi
+# Then run: nvcc --version
+```
+
+Note: Build `--gpu` (CUDA toolkit installation) and run `--gpu` (CDI device passthrough) are independent. You can use either or both depending on your needs.
 
 ### Test Mode
 

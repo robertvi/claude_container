@@ -37,6 +37,13 @@ fi
 USER_UID=$(id -u)
 USER_GID=$(id -g)
 
+# Determine GPU device flag
+GPU_FLAG=""
+if [[ "$GPU_MODE" == "true" ]]; then
+    GPU_FLAG="--device nvidia.com/gpu=all"
+    info "GPU passthrough enabled (CDI)"
+fi
+
 > "$LOG_FILE"
 
 info "Starting container '${CONTAINER_NAME}' with UID:GID ${USER_UID}:${USER_GID}..."
@@ -45,6 +52,7 @@ podman run -d \
   --hostname "$CONTAINER_NAME" \
   --userns=keep-id:uid=${USER_UID},gid=${USER_GID} \
   -v "$SHARED_FOLDER:/workspace:Z" \
+  $GPU_FLAG \
   "$IMAGE_NAME" 2>&1 | tee "$LOG_FILE"
 
 info "Container started: ${CONTAINER_NAME}"
