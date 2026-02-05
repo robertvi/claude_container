@@ -12,7 +12,7 @@ parse_common_args "$@"
 INSTANCE_NAME="${INSTANCE_NAME:-default}"
 
 # Build container name
-CONTAINER_NAME=$(build_container_name "$TEST_MODE" "$INSTANCE_NAME")
+CONTAINER_NAME=$(build_container_name "$PROFILE_NAME" "$INSTANCE_NAME")
 
 # Check if container exists
 if ! container_exists "$CONTAINER_NAME"; then

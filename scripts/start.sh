@@ -12,7 +12,7 @@ parse_common_args "$@"
 INSTANCE_NAME="${INSTANCE_NAME:-default}"
 
 # Build container name
-CONTAINER_NAME=$(build_container_name "$TEST_MODE" "$INSTANCE_NAME")
+CONTAINER_NAME=$(build_container_name "$PROFILE_NAME" "$INSTANCE_NAME")
 
 # Check if container exists
 if ! container_exists "$CONTAINER_NAME"; then
@@ -27,4 +27,4 @@ fi
 
 info "Starting container: ${CONTAINER_NAME}"
 podman start "$CONTAINER_NAME"
-info "Container started. Access with: ./scripts/exec.sh${TEST_MODE:+ --test} --name ${INSTANCE_NAME}"
+info "Container started. Access with: ./scripts/exec.sh --profile ${PROFILE_NAME} --name ${INSTANCE_NAME}"

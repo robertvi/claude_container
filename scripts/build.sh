@@ -2,23 +2,30 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # shellcheck source=common.sh
 source "$SCRIPT_DIR/common.sh"
 
 parse_common_args "$@"
 
-IMAGE_NAME=$(get_image_name "$TEST_MODE")
+# Validate profile exists
+validate_profile "$PROFILE_NAME"
 
-if [[ "$TEST_MODE" == "true" ]]; then
-    CONTAINERFILE="Containerfile.test"
-    LOG_FILE="/tmp/claude-sandbox-test-build.log"
-    info "Building TEST image..."
-else
-    CONTAINERFILE="Containerfile"
-    LOG_FILE="/tmp/claude-sandbox-build.log"
-fi
+IMAGE_NAME=$(get_image_name "$PROFILE_NAME")
+LOG_FILE="/tmp/claude-sandbox-${PROFILE_NAME}-build.log"
+
+info "Building image for profile: ${PROFILE_NAME}"
+
+# Prepare build context (merges default + profile files)
+BUILD_DIR=$(prepare_build_context "$PROFILE_NAME")
+
+# Ensure cleanup on exit
+cleanup() {
+    if [[ -n "$BUILD_DIR" && -d "$BUILD_DIR" ]]; then
+        rm -rf "$BUILD_DIR"
+    fi
+}
+trap cleanup EXIT
 
 USER_UID=$(id -u)
 USER_GID=$(id -g)
@@ -47,6 +54,6 @@ podman build \
   --build-arg USER_GID="${USER_GID}" \
   --build-arg NOSUDO="${NOSUDO_ARG}" \
   -t "$IMAGE_NAME" \
-  -f "$PROJECT_DIR/$CONTAINERFILE" "$PROJECT_DIR" 2>&1 | tee "$LOG_FILE"
+  -f "$BUILD_DIR/Containerfile" "$BUILD_DIR" 2>&1 | tee "$LOG_FILE"
 
 info "Build complete. Image tagged as: ${IMAGE_NAME}"

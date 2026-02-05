@@ -58,23 +58,23 @@ Basic concept (actual script in `scripts/build.sh` has more features):
 ```bash
 #!/bin/bash
 # Build the container image using Podman
-podman build -t claude-sandbox -f Containerfile .
+podman build -t claude-sandbox-default -f Containerfile .
 ```
 
 ### Run Script
 
-Basic concept (actual script in `scripts/run.sh` supports `--test`, `--name`, etc.):
+Basic concept (actual script in `scripts/run.sh` supports `--profile`, `--name`, etc.):
 ```bash
 #!/bin/bash
 # Start container with shared folder
 SHARED_FOLDER="${1:-$(pwd)}"
-CONTAINER_NAME="claude-sandbox-default"
+CONTAINER_NAME="claude-sandbox-default-default"
 
 podman run -d \
   --name "$CONTAINER_NAME" \
   --userns=keep-id \
   -v "$SHARED_FOLDER:/workspace:Z" \
-  claude-sandbox \
+  claude-sandbox-default \
   sleep infinity
 ```
 
@@ -89,7 +89,7 @@ Basic concept (actual script in `scripts/exec.sh` supports auto-detection):
 ```bash
 #!/bin/bash
 # Open interactive shell in running container
-CONTAINER_NAME="claude-sandbox-default"
+CONTAINER_NAME="claude-sandbox-default-default"
 podman exec -it "$CONTAINER_NAME" /bin/bash
 ```
 
@@ -106,10 +106,21 @@ Claude Code has built-in sandbox mode that uses bubblewrap:
 Repository layout:
 ```
 claude_container/
-├── Containerfile          # Production container image definition
-├── Containerfile.test     # Test container image definition
 ├── README.md              # Project description
 ├── CLAUDE.md              # This file
+├── default/               # Default profile files
+│   ├── Containerfile      # Container image definition
+│   ├── install-packages.sh # APT packages to install
+│   ├── bashrc-additions   # Shell customizations
+│   └── instructions.md    # Claude-specific instructions
+├── profiles/              # Custom profiles (inherit from default)
+│   ├── minimal01/         # Minimal profile example
+│   │   ├── Containerfile
+│   │   ├── install-packages.sh
+│   │   ├── bashrc-additions
+│   │   └── instructions.md
+│   ├── test/              # Empty test profile
+│   └── with_sudo/         # Empty sudo profile
 └── scripts/
     ├── common.sh          # Shared library (argument parsing, helpers)
     ├── build.sh           # Build container image
@@ -123,22 +134,43 @@ claude_container/
     └── nuke.sh            # Targeted cleanup of claude-sandbox resources
 ```
 
-## Multi-Container Support
+## Profile System
 
-The scripts support running multiple containers simultaneously with named instances.
+Profiles allow different container configurations. Each profile can override files from `default/`.
+
+### How Profiles Work
+
+1. `default/` contains the base configuration files
+2. Custom profiles live under `profiles/<name>/`
+3. When building, files from `default/` are copied first, then profile-specific files overlay them
+4. Profiles only need to include files they want to override
+
+### Profile Files
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `Containerfile` | Container build definition | Yes (in default) |
+| `install-packages.sh` | APT packages to install | Yes (in default) |
+| `bashrc-additions` | Shell customizations | Yes (in default) |
+| `instructions.md` | Claude-specific instructions for this environment | Yes (in default) |
 
 ### Naming Convention
 
-**Container names:**
-- With `--name foo`: `claude-sandbox-foo` (prod) or `claude-sandbox-test-foo` (test)
-- Without `--name`: `claude-sandbox-default` or `claude-sandbox-test-default`
+**Images:** `claude-sandbox-<profile>` (e.g., `claude-sandbox-default`, `claude-sandbox-minimal01`)
 
-**Images:** `claude-sandbox` (prod) and `claude-sandbox-test` (test)
+**Containers:** `claude-sandbox-<profile>-<instance>` (e.g., `claude-sandbox-default-myproject`)
+
+| Scenario | Image Name | Container Name |
+|----------|------------|----------------|
+| default profile, default instance | `claude-sandbox-default` | `claude-sandbox-default-default` |
+| default profile, named instance | `claude-sandbox-default` | `claude-sandbox-default-myproject` |
+| minimal01 profile, default instance | `claude-sandbox-minimal01` | `claude-sandbox-minimal01-default` |
+| minimal01 profile, named instance | `claude-sandbox-minimal01` | `claude-sandbox-minimal01-myproject` |
 
 ### Common Flags
 
 All scripts support these flags (in any order):
-- `--test` - Use test image/containers instead of production
+- `--profile <name>` - Use specified profile (default: `default`)
 - `--name <name>` - Specify instance name (default: `default`)
 - `--force` - Force operation (where applicable)
 
@@ -146,66 +178,70 @@ All scripts support these flags (in any order):
 
 **build.sh** - Build container image
 ```bash
-./scripts/build.sh [--test] [--no-sudo] [--no-cache]
+./scripts/build.sh [--profile <name>] [--no-sudo] [--no-cache]
+# --profile: Build specific profile (default: default)
 # --no-sudo: Disable sudo access for claude user (more restrictive)
 # --no-cache: Force rebuild without using cached layers
 ```
 
 **run.sh** - Create and start a new container
 ```bash
-./scripts/run.sh [--test] [--name <name>] [/path/to/folder]
+./scripts/run.sh [--profile <name>] [--name <name>] [/path/to/folder]
 # Arguments can be in any order
 # Default folder: current directory
+# Default profile: default
 # Default name: default
 ```
 
 **exec.sh** - Access container shell
 ```bash
-./scripts/exec.sh [--test] [--name <name>]
-# If no --name and only one container running: auto-detects
+./scripts/exec.sh [--profile <name>] [--name <name>]
+# If no --name and only one container running for profile: auto-detects
 # If multiple running: errors and lists them
 ```
 
 **stop.sh** - Stop a container (preserves filesystem for restart)
 ```bash
-./scripts/stop.sh [--test] [--name <name>]
+./scripts/stop.sh [--profile <name>] [--name <name>]
 ```
 
 **start.sh** - Restart a stopped container
 ```bash
-./scripts/start.sh [--test] [--name <name>]
+./scripts/start.sh [--profile <name>] [--name <name>]
 ```
 
 **rm.sh** - Remove a container
 ```bash
-./scripts/rm.sh [--test] [--name <name>] [--force]
+./scripts/rm.sh [--profile <name>] [--name <name>] [--force]
 # --force: stop and remove even if running
 ```
 
 **rmi.sh** - Remove an image
 ```bash
-./scripts/rmi.sh [--test] [--force]
+./scripts/rmi.sh [--profile <name>] [--force]
 # Warns if containers still exist
 ```
 
 **list.sh** - List all claude-sandbox containers
 ```bash
-./scripts/list.sh
-# Shows: container name, status, shared folder path
+./scripts/list.sh [--profile <name>]
+# Without --profile: shows all containers
+# With --profile: filters to specific profile
+# Shows: container name, profile, status, shared folder path
 ```
 
-**nuke.sh** - Targeted cleanup (replaces old clean.sh)
+**nuke.sh** - Targeted cleanup
 ```bash
-./scripts/nuke.sh [--test] [--force]
-# --test: ONLY removes test containers and test image (safe while in prod)
-# Without --test: removes ALL claude-sandbox containers and both images
+./scripts/nuke.sh [--profile <name>] [--force]
+# --profile: ONLY removes that profile's containers and image
+# Without --profile: removes ALL claude-sandbox containers and images
 # --force: skip confirmation prompt
 ```
 
-### Example: Multiple Projects
+### Example: Multiple Projects with Default Profile
 
 ```bash
-# Build image
+# Build default image
 ./scripts/build.sh
 
 # Run containers for different projects
@@ -229,17 +265,26 @@ All scripts support these flags (in any order):
 ./scripts/rm.sh --name api
 ```
 
-### Testing Safely
+### Example: Using Different Profiles
 
-When running inside a production container, always use `--test` flag:
 ```bash
-./scripts/build.sh --test
-./scripts/run.sh --test --name mytest /tmp/test
-./scripts/exec.sh --test --name mytest
-./scripts/nuke.sh --test --force  # Safe: only removes test resources
-```
+# Build both profiles
+./scripts/build.sh                        # builds claude-sandbox-default
+./scripts/build.sh --profile minimal01    # builds claude-sandbox-minimal01
 
-**WARNING:** Never run `./scripts/nuke.sh` (without `--test`) while inside a production container!
+# Run containers with different profiles
+./scripts/run.sh ~/projects/full-featured
+./scripts/run.sh --profile minimal01 --name light ~/projects/lightweight
+
+# List all containers
+./scripts/list.sh
+
+# Access by profile and name
+./scripts/exec.sh --profile minimal01 --name light
+
+# Nuke only minimal01 resources (safe for default containers)
+./scripts/nuke.sh --profile minimal01 --force
+```
 
 ## Development Notes
 

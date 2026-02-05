@@ -15,18 +15,13 @@ INSTANCE_NAME="${INSTANCE_NAME:-default}"
 SHARED_FOLDER="${REMAINING_ARGS[0]:-$(pwd)}"
 
 # Build container and image names
-CONTAINER_NAME=$(build_container_name "$TEST_MODE" "$INSTANCE_NAME")
-IMAGE_NAME=$(get_image_name "$TEST_MODE")
-
-if [[ "$TEST_MODE" == "true" ]]; then
-    LOG_FILE="/tmp/claude-sandbox-test-run.log"
-else
-    LOG_FILE="/tmp/claude-sandbox-run.log"
-fi
+CONTAINER_NAME=$(build_container_name "$PROFILE_NAME" "$INSTANCE_NAME")
+IMAGE_NAME=$(get_image_name "$PROFILE_NAME")
+LOG_FILE="/tmp/claude-sandbox-${PROFILE_NAME}-run.log"
 
 # Check if image exists
 if ! image_exists "$IMAGE_NAME"; then
-    die "Image '${IMAGE_NAME}' does not exist. Run: ./scripts/build.sh${TEST_MODE:+ --test}"
+    die "Image '${IMAGE_NAME}' does not exist. Run: ./scripts/build.sh --profile ${PROFILE_NAME}"
 fi
 
 # Check if container already exists
@@ -49,4 +44,4 @@ podman run -d \
 
 info "Container started: ${CONTAINER_NAME}"
 info "Shared folder: ${SHARED_FOLDER} -> /workspace"
-info "Access with: ./scripts/exec.sh${TEST_MODE:+ --test} --name ${INSTANCE_NAME}"
+info "Access with: ./scripts/exec.sh --profile ${PROFILE_NAME} --name ${INSTANCE_NAME}"

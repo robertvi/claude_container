@@ -10,17 +10,17 @@ parse_common_args "$@"
 
 # If no --name provided, try to auto-detect
 if [[ -z "$INSTANCE_NAME" ]]; then
-    # Get running containers (filtered by test mode if specified)
-    if [[ "$TEST_MODE" == "true" ]]; then
-        RUNNING=$(list_running_containers "true")
-    else
-        RUNNING=$(list_running_containers "false")
-    fi
+    # Get running containers (filtered by profile)
+    RUNNING=$(list_running_containers "$PROFILE_NAME")
 
     COUNT=$(echo "$RUNNING" | grep -c . || echo 0)
 
     if [[ "$COUNT" -eq 0 ]]; then
-        die "No running containers found. Start one with ./scripts/run.sh${TEST_MODE:+ --test}"
+        if [[ "$PROFILE_NAME" == "default" ]]; then
+            die "No running containers found. Start one with ./scripts/run.sh"
+        else
+            die "No running containers found for profile '${PROFILE_NAME}'. Start one with ./scripts/run.sh --profile ${PROFILE_NAME}"
+        fi
     elif [[ "$COUNT" -eq 1 ]]; then
         CONTAINER_NAME="$RUNNING"
         info "Auto-detected container: ${CONTAINER_NAME}"
@@ -30,7 +30,7 @@ if [[ -z "$INSTANCE_NAME" ]]; then
         die "Use --name to specify which container to exec into."
     fi
 else
-    CONTAINER_NAME=$(build_container_name "$TEST_MODE" "$INSTANCE_NAME")
+    CONTAINER_NAME=$(build_container_name "$PROFILE_NAME" "$INSTANCE_NAME")
 fi
 
 # Check if container is running
@@ -42,11 +42,7 @@ if ! container_running "$CONTAINER_NAME"; then
     fi
 fi
 
-if [[ "$TEST_MODE" == "true" ]]; then
-    LOG_FILE="/tmp/claude-sandbox-test-exec.log"
-else
-    LOG_FILE="/tmp/claude-sandbox-exec.log"
-fi
+LOG_FILE="/tmp/claude-sandbox-${PROFILE_NAME}-exec.log"
 
 echo "[$(date)] Accessing container: ${CONTAINER_NAME}" >> "$LOG_FILE"
 

@@ -8,20 +8,15 @@ source "$SCRIPT_DIR/common.sh"
 
 parse_common_args "$@"
 
-IMAGE_NAME=$(get_image_name "$TEST_MODE")
+IMAGE_NAME=$(get_image_name "$PROFILE_NAME")
 
 # Check if image exists
 if ! image_exists "$IMAGE_NAME"; then
     die "Image '${IMAGE_NAME}' does not exist."
 fi
 
-# Check for containers using this image
-if [[ "$TEST_MODE" == "true" ]]; then
-    CONTAINERS=$(list_sandbox_containers "true")
-else
-    # For prod image, check for non-test containers
-    CONTAINERS=$(podman ps -a --format "{{.Names}}" | grep "^${BASE_NAME}-" | grep -v "^${BASE_TEST_NAME}-" || true)
-fi
+# Check for containers using this image (containers for this profile)
+CONTAINERS=$(list_sandbox_containers "$PROFILE_NAME")
 
 if [[ -n "$CONTAINERS" ]]; then
     echo "Warning: The following containers use this image:"

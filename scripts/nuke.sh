@@ -8,19 +8,26 @@ source "$SCRIPT_DIR/common.sh"
 
 parse_common_args "$@"
 
-# Determine what we're nuking
-if [[ "$TEST_MODE" == "true" ]]; then
-    TARGET_DESC="TEST resources only (claude-sandbox-test-* containers and claude-sandbox-test image)"
-    CONTAINER_PATTERN="^${BASE_TEST_NAME}-"
-    IMAGES_TO_REMOVE=("$BASE_TEST_NAME")
-else
-    TARGET_DESC="ALL claude-sandbox resources (all containers and both images)"
-    CONTAINER_PATTERN="^${BASE_NAME}"
-    IMAGES_TO_REMOVE=("$BASE_NAME" "$BASE_TEST_NAME")
-fi
+# Check if --profile was explicitly passed
+PROFILE_SPECIFIED=false
+for arg in "$@"; do
+    if [[ "$arg" == "--profile" ]]; then
+        PROFILE_SPECIFIED=true
+        break
+    fi
+done
 
-# Find containers to remove
-CONTAINERS=$(podman ps -a --format "{{.Names}}" | grep "$CONTAINER_PATTERN" || true)
+# Determine what we're nuking
+if [[ "$PROFILE_SPECIFIED" == "true" ]]; then
+    TARGET_DESC="profile '${PROFILE_NAME}' resources (${BASE_NAME}-${PROFILE_NAME}-* containers and ${BASE_NAME}-${PROFILE_NAME} image)"
+    CONTAINERS=$(list_sandbox_containers "$PROFILE_NAME")
+    IMAGES_TO_REMOVE=("$(get_image_name "$PROFILE_NAME")")
+else
+    TARGET_DESC="ALL claude-sandbox resources (all containers and all images)"
+    CONTAINERS=$(list_sandbox_containers "")
+    # Get all claude-sandbox images
+    mapfile -t IMAGES_TO_REMOVE < <(list_sandbox_images)
+fi
 
 # Confirmation prompt unless --force
 if [[ "$FORCE_MODE" != "true" ]]; then
@@ -36,11 +43,15 @@ if [[ "$FORCE_MODE" != "true" ]]; then
 
     echo ""
     echo "Images to remove:"
-    for img in "${IMAGES_TO_REMOVE[@]}"; do
-        if image_exists "$img"; then
-            echo "  $img"
-        fi
-    done
+    if [[ ${#IMAGES_TO_REMOVE[@]} -gt 0 ]]; then
+        for img in "${IMAGES_TO_REMOVE[@]}"; do
+            if [[ -n "$img" ]] && image_exists "$img"; then
+                echo "  $img"
+            fi
+        done
+    else
+        echo "  (none)"
+    fi
 
     echo ""
     read -r -p "Are you sure? [y/N] " response
@@ -67,7 +78,7 @@ fi
 
 # Remove images
 for img in "${IMAGES_TO_REMOVE[@]}"; do
-    if image_exists "$img"; then
+    if [[ -n "$img" ]] && image_exists "$img"; then
         info "Removing image: $img"
         podman rmi "$img" >/dev/null
     fi
