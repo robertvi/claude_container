@@ -2,6 +2,5 @@
 
 - You are running inside a containerized environment
 - sudo is available for package installation if needed
-- git and gh (GitHub CLI) are installed and available
-- The workspace is a shared folder mounted from the host at `/workspace`
-- Files created here persist on the host machine
+- The /workspace is a shared folder mounted from the host
+- The absolute paths are therefore not the same on the host
